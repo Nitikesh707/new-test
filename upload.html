@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Photos and Data</title>
+    <!-- MSAL.js Library -->
+    <script src="https://alcdn.msauth.net/browser/2.32.1/js/msal-browser.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 12px 15px;
+            background: #f5f5f5;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .file-input-label:hover {
+            background: #ebebeb;
+            border-color: #667eea;
+        }
+
+        .file-input-label i {
+            margin-right: 8px;
+        }
+
+        .file-preview {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .preview-image {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .file-name {
+            margin-top: 10px;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .user-info {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .user-info p {
+            margin: 5px 0;
+            color: #333;
+        }
+
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .logout-btn:hover {
+            background: #c82333;
+        }
+
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(102, 126, 234, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        #loadingScreen h2 {
+            color: white;
+            font-size: 24px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen">
+        <h2>🔐 Authenticating with Microsoft...</h2>
+    </div>
+
+    <div class="container" id="mainContainer" style="display: none;">
+        <!-- User Info -->
+        <div class="user-info" id="userInfo">
+            <p><strong>Logged in as:</strong> <span id="userName"></span></p>
+            <p><strong>Email:</strong> <span id="userEmail"></span></p>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+
+        <h1>📤 Upload Photos and Data</h1>
+        
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="name">Name *</label>
+                <input type="text" id="name" name="name" required placeholder="Enter your name">
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email *</label>
+                <input type="email" id="email" name="email" required placeholder="Enter your email">
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" placeholder="Enter description (optional)"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="photos">Upload Photos *</label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="photos" name="photos" accept="image/*" multiple required>
+                    <label for="photos" class="file-input-label">
+                        📷 Click to select photos (multiple allowed)
+                    </label>
+                </div>
+                <div class="file-name" id="fileName"></div>
+                <div class="file-preview" id="filePreview"></div>
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">
+                💾 Save and Upload
+            </button>
+        </form>
+
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        // Azure AD Configuration
+        const msalConfig = {
+            auth: {
+                clientId: "72e28d2f-421f-405e-b752-a0920ad87681", // Your Azure AD Client ID
+                authority: "https://login.microsoftonline.com/25f33b6b-20ad-4e80-bcd1-7747d0a83362", // Your Tenant ID
+                redirectUri: "http://localhost:8080/upload.html",
+            },
+            cache: {
+                cacheLocation: "localStorage",
+                storeAuthStateInCookie: false,
+            }
+        };
+
+        const loginRequest = {
+            scopes: ["User.Read"]
+        };
+
+        // Initialize MSAL
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
+        let account = null;
+        let accessToken = null;
+
+        // Handle redirect promise
+        msalInstance.handleRedirectPromise()
+            .then(handleResponse)
+            .catch(err => {
+                console.error("Redirect error:", err);
+                // Show detailed error message
+                let errorMsg = '❌ Authentication failed<br><br>';
+                errorMsg += `<strong>Error:</strong> ${err.errorCode || err.name}<br>`;
+                errorMsg += `<strong>Message:</strong> ${err.errorMessage || err.message}<br><br>`;
+                errorMsg += '<small>Check browser console (F12) for details</small>';
+                document.getElementById('loadingScreen').innerHTML = `<div style="color: white; padding: 20px; text-align: center;">${errorMsg}</div>`;
+            });
+
+        async function handleResponse(response) {
+            if (response !== null) {
+                account = response.account;
+                await getTokenAndShowUI();
+            } else {
+                // Check if user is already logged in
+                const currentAccounts = msalInstance.getAllAccounts();
+                if (currentAccounts.length === 0) {
+                    // No user signed in, redirect to login
+                    signIn();
+                } else {
+                    account = currentAccounts[0];
+                    await getTokenAndShowUI();
+                }
+            }
+        }
+
+        function signIn() {
+            msalInstance.loginRedirect(loginRequest);
+        }
+
+        async function getTokenAndShowUI() {
+            try {
+                // Try to get token silently
+                const response = await msalInstance.acquireTokenSilent({
+                    scopes: loginRequest.scopes,
+                    account: account
+                });
+                
+                accessToken = response.accessToken;
+                
+                // Show user info
+                document.getElementById('userName').textContent = account.name || account.username;
+                document.getElementById('userEmail').textContent = account.username;
+                
+                // Hide loading, show main content
+                document.getElementById('loadingScreen').classList.add('hidden');
+                document.getElementById('mainContainer').style.display = 'block';
+                
+            } catch (error) {
+                console.log("Silent token acquisition failed, acquiring token using redirect");
+                msalInstance.acquireTokenRedirect({
+                    scopes: loginRequest.scopes,
+                    account: account
+                });
+            }
+        }
+
+        async function getAccessToken() {
+            try {
+                const response = await msalInstance.acquireTokenSilent({
+                    scopes: loginRequest.scopes,
+                    account: account
+                });
+                return response.accessToken;
+            } catch (error) {
+                console.error("Token refresh failed:", error);
+                // If silent refresh fails, redirect to login
+                msalInstance.acquireTokenRedirect({
+                    scopes: loginRequest.scopes,
+                    account: account
+                });
+                return null;
+            }
+        }
+
+        function logout() {
+            const logoutRequest = {
+                account: account,
+                postLogoutRedirectUri: window.location.origin + window.location.pathname,
+            };
+            msalInstance.logoutRedirect(logoutRequest);
+        }
+
+        // Form handling code
+        const form = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('photos');
+        const fileName = document.getElementById('fileName');
+        const filePreview = document.getElementById('filePreview');
+        const messageDiv = document.getElementById('message');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // Preview selected images
+        fileInput.addEventListener('change', function(e) {
+            const files = e.target.files;
+            filePreview.innerHTML = '';
+            fileName.textContent = '';
+
+            if (files.length > 0) {
+                fileName.textContent = `${files.length} file(s) selected`;
+                
+                Array.from(files).forEach(file => {
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const img = document.createElement('img');
+                            img.src = e.target.result;
+                            img.className = 'preview-image';
+                            filePreview.appendChild(img);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+        });
+
+        // Handle form submission
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Uploading...';
+            messageDiv.style.display = 'none';
+            messageDiv.className = 'message';
+
+            try {
+                // Get fresh access token
+                const token = await getAccessToken();
+                
+                if (!token) {
+                    throw new Error("Failed to get access token");
+                }
+
+                const formData = new FormData(form);
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    messageDiv.textContent = result.message || 'Upload successful!';
+                    messageDiv.className = 'message success';
+                    messageDiv.style.display = 'block';
+                    
+                    // Reset form after successful upload
+                    form.reset();
+                    filePreview.innerHTML = '';
+                    fileName.textContent = '';
+                } else {
+                    throw new Error(result.error || 'Upload failed');
+                }
+            } catch (error) {
+                messageDiv.textContent = `Error: ${error.message}`;
+                messageDiv.className = 'message error';
+                messageDiv.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '💾 Save and Upload';
+            }
+        });
+    </script>
+</body>
+</html>

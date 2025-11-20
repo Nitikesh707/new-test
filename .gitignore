@@ -1,0 +1,15 @@
+node_modules
+
+# Environment variables (contains secrets)
+.env
+
+# Uploaded files
+uploads/*
+!uploads/.gitkeep
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
